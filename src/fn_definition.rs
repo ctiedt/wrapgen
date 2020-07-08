@@ -1,7 +1,8 @@
-use regex::Captures;
+use regex::{Captures, Regex};
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+#[derive(Clone)]
 pub struct FnDefinition {
     pub name: String,
     pub params: Option<String>,
@@ -9,6 +10,18 @@ pub struct FnDefinition {
 }
 
 impl FnDefinition {
+    pub fn from_str(function: &str) -> Result<Self, &str> {
+        let re =
+            Regex::new(r"fn\s([a-z_0-9]+)\s?\(([a-z_:&*0-9,\s]*)\)\s?(\s->\s([a-z_:&*0-9\s]*))?;?")
+                .unwrap();
+        // This one is slightly different from the one used for files - it doesn't require a semicolon
+
+        match re.captures(function) {
+            Some(cap) => FnDefinition::from_cap(cap),
+            None => Err("Couldn't parse function"),
+        }
+    }
+
     pub fn from_cap(cap: Captures) -> Result<Self, &str> {
         match cap.get(1) {
             Some(name) => Ok(Self {

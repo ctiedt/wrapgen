@@ -5,18 +5,30 @@ use regex::Regex;
 
 #[derive(Clone)]
 pub struct WrapGen {
-    file: String,
+    functions: Vec<FnDefinition>,
     prefix: String,
     use_core: bool,
 }
 
 impl WrapGen {
-    pub fn default(file: &str) -> Self {
+    pub fn default() -> Self {
         WrapGen {
-            file: String::from(file),
+            functions: Vec::new(),
             prefix: String::from("rs_"),
             use_core: false,
         }
+    }
+
+    pub fn add_file(mut self, file: &str) -> Self {
+        let mut fns = self.read_fns(std::fs::read_to_string(file).unwrap().as_str());
+        self.functions.append(&mut fns);
+        self
+    }
+
+    pub fn add_function(mut self, function: &str) -> Self {
+        self.functions
+            .push(FnDefinition::from_str(function).unwrap());
+        self
     }
 
     pub fn prefix(mut self, prefix: &str) -> Self {
@@ -30,19 +42,17 @@ impl WrapGen {
     }
 
     pub fn new(file: &str) -> Self {
-        WrapGen::default(file)
+        WrapGen::default().add_file(file)
     }
 
-    fn read_fns(&self) -> Vec<FnDefinition> {
-        let lines = std::fs::read_to_string(self.file.clone()).unwrap();
-
+    fn read_fns(&self, lines: &str) -> Vec<FnDefinition> {
         let re =
             Regex::new(r"fn\s([a-z_0-9]+)\s?\(([a-z_:&*0-9,\s]*)\)\s?(\s->\s([a-z_:&*0-9\s]*))?;")
                 .unwrap();
 
         let mut matches = Vec::new();
 
-        for cap in re.captures_iter(lines.as_str()) {
+        for cap in re.captures_iter(lines) {
             matches.push(FnDefinition::from_cap(cap).unwrap());
         }
 
@@ -101,7 +111,6 @@ impl WrapGen {
     }
 
     pub fn generate(&self, outfile_path: &str) {
-        let fns = self.read_fns();
         let _ = std::fs::write(
             outfile_path,
             format!(
@@ -110,11 +119,13 @@ impl WrapGen {
 }}
 
 {}",
-                fns.iter()
+                self.functions
+                    .iter()
                     .map(|v| format!("{}", v))
                     .collect::<Vec<String>>()
                     .join("\n"),
-                fns.iter()
+                self.functions
+                    .iter()
                     .map(|v| self.translate_function(v))
                     .collect::<Vec<String>>()
                     .join("\n\n")
