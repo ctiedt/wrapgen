@@ -2,6 +2,7 @@ mod fn_definition;
 
 use fn_definition::FnDefinition;
 use regex::Regex;
+use std::path::Path;
 
 #[derive(Clone)]
 pub struct WrapGen {
@@ -11,6 +12,7 @@ pub struct WrapGen {
 }
 
 impl WrapGen {
+    /// Create a new `WrapGen` without reading from any files
     pub fn default() -> Self {
         WrapGen {
             functions: Vec::new(),
@@ -19,29 +21,37 @@ impl WrapGen {
         }
     }
 
-    pub fn add_file(mut self, file: &str) -> Self {
+    /// Add all the functions from `file`
+    pub fn add_file<P: AsRef<Path>>(mut self, file: P) -> Self {
         let mut fns = self.read_fns(std::fs::read_to_string(file).unwrap().as_str());
         self.functions.append(&mut fns);
         self
     }
 
+    /// Add the single function from `function`.
+    /// A semicolon at the end is optional here.
     pub fn add_function(mut self, function: &str) -> Self {
         self.functions
             .push(FnDefinition::from_str(function).unwrap());
         self
     }
 
+    /// Set the prefix of the wrapped functions.
+    /// Defaults to `rs_`
     pub fn prefix(mut self, prefix: &str) -> Self {
         self.prefix = String::from(prefix);
         self
     }
 
+    /// Determines if `core::ptr` or `std::ptr` should be used
     pub fn use_core(mut self, use_core: bool) -> Self {
         self.use_core = use_core;
         self
     }
 
-    pub fn new(file: &str) -> Self {
+    /// Create a new `WrapGen` and add the functions
+    /// listed in `file`
+    pub fn new<P: AsRef<Path>>(file: P) -> Self {
         WrapGen::default().add_file(file)
     }
 
@@ -110,7 +120,9 @@ impl WrapGen {
         }
     }
 
-    pub fn generate(&self, outfile_path: &str) {
+    /// Generate wrappers for all previously added functions
+    /// and write them to `outfile_path`
+    pub fn generate<P: AsRef<Path>>(&self, outfile_path: P) {
         let _ = std::fs::write(
             outfile_path,
             format!(
