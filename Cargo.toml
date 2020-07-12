@@ -1,6 +1,6 @@
 [package]
 name = "wrapgen"
-version = "0.1.0"
+version = "0.1.1"
 description = "A tool to automatically generate safe wrappers around FFI functions"
 authors = ["Clemens Tiedt <clemens.tiedt@student.hpi.de>"]
 license = "MIT"
