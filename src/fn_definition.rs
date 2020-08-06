@@ -12,7 +12,7 @@ pub struct FnDefinition {
 impl FnDefinition {
     pub fn from_str(function: &str) -> Result<Self, &str> {
         let re =
-            Regex::new(r"fn\s([a-z_0-9]+)\s?\(([a-z_:&*0-9,\s]*)\)\s?(\s->\s([a-z_:&*0-9\s]*))?;?")
+            Regex::new(r"fn\s([a-z_0-9]+)\s?\(([a-z_:&*0-9,\s]*)\)\s?(->\s([a-z_:&*0-9\s]*))?;?")
                 .unwrap();
         // This one is slightly different from the one used for files - it doesn't require a semicolon
 

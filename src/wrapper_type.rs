@@ -39,8 +39,8 @@ impl FieldType {
 
 #[derive(Clone)]
 pub struct WrapperType {
-    original: String,
-    renamed: String,
+    pub original: String,
+    pub renamed: String,
     fields: Vec<FieldType>,
 }
 

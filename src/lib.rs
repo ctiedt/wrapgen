@@ -3,6 +3,7 @@ mod wrapper_type;
 
 use fn_definition::FnDefinition;
 use regex::Regex;
+use std::collections::HashMap;
 use std::path::Path;
 pub use wrapper_type::WrapperType;
 
@@ -66,9 +67,21 @@ impl WrapGen {
         self
     }
 
+    fn wrapped_types(&self) -> HashMap<String, String> {
+        let mut types = HashMap::new();
+        for (original, wrapper) in self
+            .wrapped_types
+            .iter()
+            .map(|v| (v.original.clone(), v.renamed.clone()))
+        {
+            types.insert(original, wrapper);
+        }
+        types
+    }
+
     fn read_fns(&self, lines: &str) -> Vec<FnDefinition> {
         let re =
-            Regex::new(r"fn\s([a-z_0-9]+)\s?\(([a-z_:&*0-9,\s]*)\)\s?(\s->\s([a-z_:&*0-9\s]*))?;")
+            Regex::new(r"fn\s([a-z_0-9]+)\s?\(([a-z_:&*0-9,\s]*)\)\s?(->\s([a-z_:&*0-9\s]*))?;")
                 .unwrap();
 
         let mut matches = Vec::new();
@@ -105,16 +118,26 @@ impl WrapGen {
     if val == {}::ptr::null_mut() {{
         return None;
     }} else {{
-        return Some(val);
+        return Some({});
     }}
 }}",
                         self.prefix,
                         function.get_name(),
                         function.get_params(),
-                        function.get_returns(),
+                        self.wrapped_types()
+                            .get(function.get_returns().split_terminator(" ").nth(1).unwrap())
+                            .unwrap_or(&function.get_returns()),
                         function.get_name(),
                         function.get_param_names().join(", "),
-                        if self.use_core { "core" } else { "std" }
+                        if self.use_core { "core" } else { "std" },
+                        if let Some(wrapper) = self
+                            .wrapped_types()
+                            .get(function.get_returns().split_terminator(" ").nth(1).unwrap())
+                        {
+                            format!("{}::new(val)", wrapper)
+                        } else {
+                            "val".to_owned()
+                        }
                     )
                 }
             }
