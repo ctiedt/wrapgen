@@ -1,12 +1,15 @@
 mod fn_definition;
+mod wrapper_type;
 
 use fn_definition::FnDefinition;
 use regex::Regex;
+use std::collections::HashMap;
 use std::path::Path;
 
 #[derive(Clone)]
 pub struct WrapGen {
     functions: Vec<FnDefinition>,
+    wrapped_types: HashMap<String, String>,
     prefix: String,
     use_core: bool,
 }
@@ -16,6 +19,7 @@ impl WrapGen {
     pub fn default() -> Self {
         WrapGen {
             functions: Vec::new(),
+            wrapped_types: HashMap::new(),
             prefix: String::from("rs_"),
             use_core: false,
         }
@@ -53,6 +57,36 @@ impl WrapGen {
     /// listed in `file`
     pub fn new<P: AsRef<Path>>(file: P) -> Self {
         WrapGen::default().add_file(file)
+    }
+
+    pub fn wrap_pointer_type(mut self, to_wrap: &str, wrapped_type: &str) -> Self {
+        self.wrapped_types
+            .insert(String::from(to_wrap), String::from(wrapped_type));
+        self
+    }
+
+    fn create_wrapper(&self, to_wrap: &str) -> String {
+        let wrapper_name = self
+            .wrapped_types
+            .get(to_wrap)
+            .unwrap_or(&String::from(to_wrap))
+            .clone();
+        format!(
+            "struct {} {{
+    ptr: *mut {}
+}}
+
+impl {} {{
+    fn from_ptr(ptr: *mut {}) -> Self {{
+        Self {{ ptr }}
+    }}
+
+    fn get_ptr(&self) -> *mut {} {{
+        self.ptr
+    }}
+}}",
+            &wrapper_name, to_wrap, &wrapper_name, to_wrap, to_wrap
+        )
     }
 
     fn read_fns(&self, lines: &str) -> Vec<FnDefinition> {
@@ -120,20 +154,38 @@ impl WrapGen {
         }
     }
 
+    fn generate_extern_declarations(&self) -> String {
+        if self.functions.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "extern \"C\" {{
+{}
+}}",
+                self.functions
+                    .iter()
+                    .map(|v| format!("{}", v))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            )
+        }
+    }
+
     /// Generate wrappers for all previously added functions
     /// and write them to `outfile_path`
     pub fn generate<P: AsRef<Path>>(&self, outfile_path: P) {
         let _ = std::fs::write(
             outfile_path,
             format!(
-                "extern \"C\" {{
+                "{}
+
 {}
-}}
 
 {}",
-                self.functions
-                    .iter()
-                    .map(|v| format!("{}", v))
+                self.generate_extern_declarations(),
+                self.wrapped_types
+                    .keys()
+                    .map(|k| self.create_wrapper(k))
                     .collect::<Vec<String>>()
                     .join("\n"),
                 self.functions
