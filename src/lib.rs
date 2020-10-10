@@ -8,34 +8,36 @@ use std::path::Path;
 pub use wrapper_type::WrapperType;
 
 #[derive(Clone)]
-pub struct WrapGen {
-    functions: Vec<FnDefinition>,
-    wrapped_types: Vec<WrapperType>,
-    prefix: String,
+pub struct WrapGen<'a> {
+    functions: Vec<FnDefinition<'a>>,
+    wrapped_types: Vec<WrapperType<'a>>,
+    prefix: &'a str,
     use_core: bool,
+    _included_files: Vec<String>,
 }
 
-impl WrapGen {
+impl<'a> WrapGen<'a> {
     /// Create a new `WrapGen` without reading from any files
     pub fn default() -> Self {
         WrapGen {
             functions: Vec::new(),
             wrapped_types: Vec::new(),
-            prefix: String::from("rs_"),
+            prefix: "rs_",
             use_core: false,
+            _included_files: Vec::new(),
         }
     }
 
     /// Add all the functions from `file`
     pub fn add_file<P: AsRef<Path>>(mut self, file: P) -> Self {
-        let mut fns = self.read_fns(std::fs::read_to_string(file).unwrap().as_str());
-        self.functions.append(&mut fns);
+        let lines = std::fs::read_to_string(file).unwrap();
+        self._included_files.push(lines);
         self
     }
 
     /// Add the single function from `function`.
     /// A semicolon at the end is optional here.
-    pub fn add_function(mut self, function: &str) -> Self {
+    pub fn add_function(mut self, function: &'a str) -> Self {
         self.functions
             .push(FnDefinition::from_str(function).unwrap());
         self
@@ -43,8 +45,8 @@ impl WrapGen {
 
     /// Set the prefix of the wrapped functions.
     /// Defaults to `rs_`
-    pub fn prefix(mut self, prefix: &str) -> Self {
-        self.prefix = String::from(prefix);
+    pub fn prefix(mut self, prefix: &'a str) -> Self {
+        self.prefix = prefix;
         self
     }
 
@@ -62,12 +64,12 @@ impl WrapGen {
 
     /// Will create a wrapper around a type (usually a pointer)
     /// to allow safe access to fields
-    pub fn wrap_pointer_type(mut self, to_wrap: WrapperType) -> Self {
+    pub fn wrap_pointer_type(mut self, to_wrap: WrapperType<'a>) -> Self {
         self.wrapped_types.push(to_wrap);
         self
     }
 
-    fn wrapped_types(&self) -> HashMap<String, String> {
+    fn wrapped_types(&self) -> HashMap<&str, &str> {
         let mut types = HashMap::new();
         for (original, wrapper) in self
             .wrapped_types
@@ -79,7 +81,7 @@ impl WrapGen {
         types
     }
 
-    fn read_fns(&self, lines: &str) -> Vec<FnDefinition> {
+    fn read_fns(lines: &'a str) -> Vec<FnDefinition> {
         let re =
             Regex::new(r"fn\s([a-z_0-9]+)\s?\(([a-z_:&*0-9,\s]*)\)\s?(->\s([a-z_:&*0-9\s]*))?;")
                 .unwrap();
@@ -173,7 +175,10 @@ impl WrapGen {
 
     /// Generate wrappers for all previously added functions
     /// and write them to `outfile_path`
-    pub fn generate<P: AsRef<Path>>(&self, outfile_path: P) {
+    pub fn generate<P: AsRef<Path>>(&'a mut self, outfile_path: P) {
+        for lines in &self._included_files {
+            self.functions.append(&mut Self::read_fns(&lines))
+        }
         let _ = std::fs::write(
             outfile_path,
             format!(

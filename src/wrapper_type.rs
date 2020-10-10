@@ -1,12 +1,12 @@
 #[derive(Clone)]
-pub enum FieldType {
-    ReadOnlyField(String, String),
-    WriteOnlyField(String, String),
-    ReadWriteField(String, String),
+pub enum FieldType<'a> {
+    ReadOnlyField(&'a str, &'a str),
+    WriteOnlyField(&'a str, &'a str),
+    ReadWriteField(&'a str, &'a str),
 }
 
-impl FieldType {
-    fn generate_getter(name: &str, field_type: &str) -> String {
+impl<'a> FieldType<'a> {
+    fn generate_getter(name: &'a str, field_type: &'a str) -> String {
         format!(
             "fn get_{}(&self) -> {} {{
         unsafe {{ (*self.ptr).{} }}
@@ -15,7 +15,7 @@ impl FieldType {
         )
     }
 
-    fn generate_setter(name: &str, field_type: &str) -> String {
+    fn generate_setter(name: &'a str, field_type: &'a str) -> String {
         format!(
             "fn set_{}(&self, value: {}) {{
         unsafe {{ (*self.ptr).{} = value }};
@@ -38,42 +38,36 @@ impl FieldType {
 }
 
 #[derive(Clone)]
-pub struct WrapperType {
-    pub original: String,
-    pub renamed: String,
-    fields: Vec<FieldType>,
+pub struct WrapperType<'a> {
+    pub original: &'a str,
+    pub renamed: &'a str,
+    fields: Vec<FieldType<'a>>,
 }
 
-impl WrapperType {
-    pub fn new(original: &str, renamed: &str) -> Self {
+impl<'a> WrapperType<'a> {
+    pub fn new(original: &'a str, renamed: &'a str) -> Self {
         Self {
-            original: original.to_owned(),
-            renamed: renamed.to_owned(),
+            original: original,
+            renamed: renamed,
             fields: Vec::new(),
         }
     }
 
-    pub fn with_field(mut self, field_name: &str, field_type: &str) -> Self {
-        self.fields.push(FieldType::ReadWriteField(
-            field_name.to_owned(),
-            field_type.to_owned(),
-        ));
+    pub fn with_field(mut self, field_name: &'a str, field_type: &'a str) -> Self {
+        self.fields
+            .push(FieldType::ReadWriteField(field_name, field_type));
         self
     }
 
-    pub fn with_field_readonly(mut self, field_name: &str, field_type: &str) -> Self {
-        self.fields.push(FieldType::ReadOnlyField(
-            field_name.to_owned(),
-            field_type.to_owned(),
-        ));
+    pub fn with_field_readonly(mut self, field_name: &'a str, field_type: &'a str) -> Self {
+        self.fields
+            .push(FieldType::ReadOnlyField(field_name, field_type));
         self
     }
 
-    pub fn with_field_writeonly(mut self, field_name: &str, field_type: &str) -> Self {
-        self.fields.push(FieldType::WriteOnlyField(
-            field_name.to_owned(),
-            field_type.to_owned(),
-        ));
+    pub fn with_field_writeonly(mut self, field_name: &'a str, field_type: &'a str) -> Self {
+        self.fields
+            .push(FieldType::WriteOnlyField(field_name, field_type));
         self
     }
 

@@ -3,14 +3,14 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 
 #[derive(Clone)]
-pub struct FnDefinition {
-    pub name: String,
-    pub params: Option<String>,
-    pub returns: Option<String>,
+pub struct FnDefinition<'a> {
+    pub name: &'a str,
+    pub params: Option<&'a str>,
+    pub returns: Option<&'a str>,
 }
 
-impl FnDefinition {
-    pub fn from_str(function: &str) -> Result<Self, &str> {
+impl<'a> FnDefinition<'a> {
+    pub fn from_str(function: &'a str) -> Result<Self, &str> {
         let re =
             Regex::new(r"fn\s([a-z_0-9]+)\s?\(([a-z_:&*0-9,\s]*)\)\s?(->\s([a-z_:&*0-9\s]*))?;?")
                 .unwrap();
@@ -22,16 +22,16 @@ impl FnDefinition {
         }
     }
 
-    pub fn from_cap(cap: Captures) -> Result<Self, &str> {
+    pub fn from_cap(cap: Captures<'a>) -> Result<Self, &str> {
         match cap.get(1) {
             Some(name) => Ok(Self {
-                name: String::from(name.as_str()),
+                name: name.as_str(),
                 params: match cap.get(2) {
-                    Some(params) => Some(String::from(params.as_str())),
+                    Some(params) => Some(params.as_str()),
                     None => None,
                 },
                 returns: match cap.get(4) {
-                    Some(returns) => Some(String::from(returns.as_str())),
+                    Some(returns) => Some(returns.as_str()),
                     None => None,
                 },
             }),
@@ -39,31 +39,31 @@ impl FnDefinition {
         }
     }
 
-    pub fn get_name(&self) -> String {
-        String::from(self.name.as_str())
+    pub fn get_name(&self) -> &str {
+        self.name
     }
 
-    pub fn get_params(&self) -> String {
-        String::from(match &self.params {
-            Some(params) => params.as_str(),
+    pub fn get_params(&self) -> &str {
+        match &self.params {
+            Some(params) => params,
             None => "",
-        })
+        }
     }
 
-    pub fn get_returns(&self) -> String {
-        String::from(match &self.returns {
-            Some(returns) => returns.as_str(),
+    pub fn get_returns(&self) -> &str {
+        match &self.returns {
+            Some(returns) => returns,
             None => "",
-        })
+        }
     }
 
-    pub fn get_param_names(&self) -> Vec<String> {
+    pub fn get_param_names(&self) -> Vec<&str> {
         match &self.params {
             Some(params) => {
                 let mut params_vec = Vec::new();
                 for param in params.split_terminator(", ") {
-                    let name = String::from(param);
-                    params_vec.push(String::from(name.split(":").next().unwrap()));
+                    let name = param;
+                    params_vec.push(name.split(":").next().unwrap());
                 }
                 params_vec
             }
@@ -72,7 +72,7 @@ impl FnDefinition {
     }
 }
 
-impl Display for FnDefinition {
+impl<'a> Display for FnDefinition<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match &self.returns {
             Some(_) => write!(
