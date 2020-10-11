@@ -62,6 +62,36 @@ impl<'a> FieldType<'a> {
 }
 
 #[derive(Clone)]
+/// The representation of a pointer type to wrap.
+/// If you wrap a pointer type `*mut T`, it will be represtented
+/// as `Wrapper<T>` where `Wrapper` is defined as the following
+/// zero-cost abstraction:
+///
+///```
+///pub struct Wrapper<T> {
+///    ptr: *mut T
+///}
+///
+///impl<T> Wrapper<T> {
+///    pub fn from_ptr(ptr: *mut T) -> Self {
+///        Self { ptr }
+///    }
+///
+///    pub fn get_ptr(&self) -> *mut T {
+///        self.ptr
+///    }
+///}
+/// ```
+///
+/// WrapGen can create methods to safely access fields present on `*mut T`.
+///
+/// # Example
+///
+/// ```
+///WrapperType::new("inode", "Inode")
+///    .with_field("i_sb", "*mut super_block")
+///    .with_field_writeonly("i_ino", "cty::c_int")
+/// ```
 pub struct WrapperType<'a> {
     pub original: &'a str,
     pub renamed: &'a str,
@@ -69,32 +99,37 @@ pub struct WrapperType<'a> {
 }
 
 impl<'a> WrapperType<'a> {
+    /// Create a new wrapper for type `*mut original`
     pub fn new(original: &'a str, renamed: &'a str) -> Self {
         Self {
-            original: original,
-            renamed: renamed,
+            original,
+            renamed,
             fields: Vec::new(),
         }
     }
 
+    /// Add a field present on `*mut original` that has a getter and setter
     pub fn with_field(mut self, field_name: &'a str, field_type: &'a str) -> Self {
         self.fields
             .push(FieldType::ReadWriteField(field_name, field_type));
         self
     }
 
+    /// Add a field present on `*mut original` that will only be read
     pub fn with_field_readonly(mut self, field_name: &'a str, field_type: &'a str) -> Self {
         self.fields
             .push(FieldType::ReadOnlyField(field_name, field_type));
         self
     }
 
+    /// Add a field present on `*mut original` that will only be written to
     pub fn with_field_writeonly(mut self, field_name: &'a str, field_type: &'a str) -> Self {
         self.fields
             .push(FieldType::WriteOnlyField(field_name, field_type));
         self
     }
 
+    /// Generate the implementation of the wrapper
     pub fn generate(&self) -> String {
         format!(
             "type {} = Wrapper<{}>;

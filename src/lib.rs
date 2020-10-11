@@ -1,3 +1,28 @@
+//! `wrapgen` is a tool to automatically generate Rust wrappers around C functions called via FFI.
+//! It will wrap pointer returns in an `Option` and `int` returns in a `Result`.
+//! As of now, `wrapgen` only works if your functions adhere to the C convention of returning
+//! 0 on a successful run and another value otherwise.
+//!
+//! ## How to use `wrapgen`
+//!
+//! You can use wrapgen as a standalone binary:
+//!
+//! `wrapgen input.rs output.rs`
+//!
+//! where `input.rs` contains one function declaration per line
+//!
+//! or include it in your `build.rs` file:
+//!
+//! ```rust
+//!fn main() {
+//!    WrapGen::new("input1.rs")
+//!        .add_file("input2.rs")
+//!        .function("fn my_test_fn(arg1: cty::c_int) -> cty::c_int")
+//!        .prefix("rs_")
+//!        .use_core(false)
+//!        .generate("output.rs");
+//!}
+//! ```
 mod fn_definition;
 mod wrapper_type;
 
@@ -7,8 +32,34 @@ use std::collections::HashMap;
 use std::path::Path;
 pub use wrapper_type::WrapperType;
 
-///
 #[derive(Clone)]
+/// The builder struct to create wrappers.
+/// Create an instance, add the files,
+/// types and functions you want to wrap
+/// and finally call [`generate()`] to create
+/// the wrappers.
+///
+/// # Examples
+///
+/// Wrap some functions
+///
+/// ```
+/// WrapGen::new("examples/to_wrap.rs").generate("outfile.rs");
+/// ```
+///
+/// Wrap a pointer type
+///
+/// ```
+/// WrapGen::default()
+///         .wrap_pointer_type(
+///             WrapperType::new("inode", "Inode")
+///                 .with_field("i_sb", "*mut super_block")
+///                 .with_field_writeonly("i_ino", "cty::c_int"),
+///         )
+///         .generate("outfile.rs")
+/// ```
+///
+/// [`generate()`]: #method.generate
 pub struct WrapGen<'a> {
     functions: Vec<FnDefinition<'a>>,
     wrapped_types: Vec<WrapperType<'a>>,
