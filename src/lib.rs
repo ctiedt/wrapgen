@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::path::Path;
 pub use wrapper_type::WrapperType;
 
+///
 #[derive(Clone)]
 pub struct WrapGen<'a> {
     functions: Vec<FnDefinition<'a>>,
@@ -136,7 +137,7 @@ impl<'a> WrapGen<'a> {
                             .wrapped_types()
                             .get(function.get_returns().split_terminator(" ").nth(1).unwrap())
                         {
-                            format!("{}::new(val)", wrapper)
+                            format!("{}::from_ptr(val)", wrapper)
                         } else {
                             "val".to_owned()
                         }
@@ -183,6 +184,20 @@ impl<'a> WrapGen<'a> {
             outfile_path,
             format!(
                 "{}
+
+pub struct Wrapper<T> {{
+    ptr: *mut T
+}}
+
+impl<T> Wrapper<T> {{
+    pub fn from_ptr(ptr: *mut T) -> Self {{
+        Self {{ ptr }}
+    }}
+
+    pub fn get_ptr(&self) -> *mut T {{
+        self.ptr
+    }}
+}}
 
 {}
 

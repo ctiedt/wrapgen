@@ -24,6 +24,30 @@ impl<'a> FieldType<'a> {
         )
     }
 
+    fn generate_getter_signature(name: &'a str, field_type: &'a str) -> String {
+        format!("fn get_{}(&self) -> {};", name, field_type)
+    }
+
+    fn generate_setter_signature(name: &'a str, field_type: &'a str) -> String {
+        format!("fn set_{}(&self, value: {});", name, field_type)
+    }
+
+    fn generate_signatures(&self) -> String {
+        match self {
+            Self::ReadOnlyField(name, field_type) => {
+                Self::generate_getter_signature(name, field_type)
+            }
+            Self::WriteOnlyField(name, field_type) => {
+                Self::generate_setter_signature(name, field_type)
+            }
+            Self::ReadWriteField(name, field_type) => format!(
+                "{}\n    {}",
+                Self::generate_getter_signature(name, field_type),
+                Self::generate_setter_signature(name, field_type)
+            ),
+        }
+    }
+
     fn generate(&self) -> String {
         match self {
             Self::ReadOnlyField(name, field_type) => Self::generate_getter(name, field_type),
@@ -73,31 +97,30 @@ impl<'a> WrapperType<'a> {
 
     pub fn generate(&self) -> String {
         format!(
-            "struct {} {{
-    ptr: *mut {}
+            "type {} = Wrapper<{}>;
+
+pub trait {}Ops {{
+    {}
 }}
 
-impl {} {{
-    fn new(ptr: *mut {}) -> Self {{
-        Self {{ ptr }}
-    }}
-
-    fn get_ptr(&self) -> *mut {} {{
-        self.ptr
-    }}
-
+impl {}Ops for {} {{
     {}
 }}",
             self.renamed,
             self.original,
             self.renamed,
-            self.original,
-            self.original,
+            self.fields
+                .iter()
+                .map(|f| f.generate_signatures())
+                .collect::<Vec<String>>()
+                .join("\n    "),
+            self.renamed,
+            self.renamed,
             self.fields
                 .iter()
                 .map(|f| f.generate())
                 .collect::<Vec<String>>()
-                .join("\n\n    ")
+                .join("\n\n    "),
         )
     }
 }
