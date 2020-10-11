@@ -1,5 +1,7 @@
 # wrapgen
 
+![Crates.io](https://img.shields.io/crates/v/wrapgen) ![Crates.io](https://img.shields.io/crates/d/wrapgen)
+
 `wrapgen` is a tool to automatically generate Rust wrappers around C functions called via FFI.
 It will wrap pointer returns in an `Option` and `int` returns in a `Result`.
 As of now, `wrapgen` only works if your functions adhere to the C convention of returning
